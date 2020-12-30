@@ -10,7 +10,7 @@ from Cryptodome.Hash import SHA256
 from Cryptodome.PublicKey import RSA
 from Cryptodome.Random import get_random_bytes
 from Cryptodome.Signature import pkcs1_15
-from Cryptodome.Util.Padding import pad
+from Cryptodome.Util.Padding import pad, unpad
 from pip._vendor.distlib.compat import raw_input
 
 ans=True
@@ -182,24 +182,26 @@ while ans:
                     if ans4 == "1":
                         # AES Encrypt
                         AES_key_length = 16
-                        secret_key = input("Enter votre secret ")
+                        secret_key1 = input("Enter votre secret (mot de passe) : ")
                         def encrypt(plaintext, key, mode):
                             encobj = AES.new(key, mode)
                             return (encobj.encrypt(plaintext))
-                        ciphertext = encrypt(
+                        ciphertext1 = encrypt(
                             pad(private_msg.encode(), AES_key_length),
-                            pad(secret_key.encode(), AES_key_length),
+                            pad(secret_key1.encode(), AES_key_length),
                             AES.MODE_ECB)
-                        print("Cipher (Hex): ", ciphertext.hex())
-                        print("Cipher (Base64): ", base64.b64encode(ciphertext).decode())
-                        print("Cipher (ECB): " + binascii.hexlify(bytearray(ciphertext)).decode())
+                        print("Hex: ", ciphertext1.hex())
 
                     elif ans4 == "2":
+                        # Blowfish Encrypt
+                        Blowfish_key_length = 16
                         bs = Blowfish.block_size
-                        key = input("Entrez votre longue clé ici : ")
-                        cipher = Blowfish.new(key.encode(),Blowfish.MODE_ECB)
-                        ciphertext = cipher.encrypt(pad(private_msg.encode(),block_size=16))
-                        print(ciphertext.hex())
+                        key2 = input("Enter votre secret ( mot de passe à 16 caractères de préférence ) : ")
+                        #cipher = Blowfish.new(key.encode(),Blowfish.MODE_ECB)
+                        cipher2 = Blowfish.new(pad(key2.encode(), Blowfish_key_length),Blowfish.MODE_ECB)
+                        #ciphertext2 = cipher2.encrypt(pad(private_msg.encode(),block_size=16))
+                        ciphertext2 = cipher2.encrypt(private_msg.encode())
+                        print("Hex :", ciphertext2.hex())
                     elif ans4 =="3":
                         ans4=None
                     else:
@@ -209,7 +211,7 @@ while ans:
 
             #Déchiffrement
             elif ans4_1 =="2":
-                ciphertext = input("Saisir le message chiffré : ")
+                ciphertext = input("Saisir le message chiffré (Hex) : ")
                 ans4_2 = True
                 while ans4_2:
                     print("""
@@ -219,28 +221,47 @@ while ans:
                     """)
                     ans4_2 = raw_input("Quelle est le type de chiffrement que vous désirez? ")
                     if ans4_2 == "1":
-                        ciphertext = bytes.fromhex(ciphertext)
-                        AES_key_length = 16
-                        secret_key = input("Enter votre secret : ")
-                        # AES Decryption
+                        # AES : decrypt
                         def decrypt(ciphertext, key, mode):
                             encobj = AES.new(key, mode)
                             return (encobj.decrypt(ciphertext))
 
-                        plaintext = decrypt(ciphertext,pad(secret_key.encode(), AES_key_length),AES.MODE_ECB)
+                        ciphertext1 = bytes.fromhex(ciphertext)
+                        AES_key_length = 16
+
+                        test = False
+                        while test == False:
+                            try:
+                                secret_key1 = input("Enter votre secret (mot de passe) : ")
+                                text_bytes1 = decrypt(ciphertext1,pad(secret_key1.encode(), AES_key_length),AES.MODE_ECB)
+                                plaintext1 = unpad(text_bytes1, AES_key_length)
+                                plaintext1 = plaintext1.decode()
+                                test = True
+                            except Exception:
+                                print("Oops ! Secret érroné, essayer encore une fois... \n")
                         print("\n ***********************************")
                         print(" ***********************************")
-                        print("Le text clair est :  ", plaintext.decode())
+                        print("Le text clair est :  ", plaintext1)
                         print(" ***********************************")
                         print(" ***********************************")
                     elif ans4_2 == "2":
-                        ciphertext = bytes.fromhex(ciphertext)
-                        key = input("Enterez votre mot de passe")
-                        cypher = Blowfish.new(key.encode(),Blowfish.MODE_ECB)
+                        # Blowfish Decrypt
+                        Blowfish_key_length = 16
+                        ciphertext2 = bytes.fromhex(ciphertext)
+                        test = False
+                        while test == False:
+                            try:
+                                key = input("Enter votre secret (mot de passe) : ")
+                                #cypher = Blowfish.new(key.encode(),Blowfish.MODE_ECB)
+                                cypher2 = Blowfish.new(pad(key.encode(), Blowfish_key_length),Blowfish.MODE_ECB)
+                                text_bytes2 = cypher2.decrypt(ciphertext2)
+                                plaintext2 = text_bytes2.decode()
+                                test = True
+                            except Exception:
+                                print("Oops ! Secret érroné, essayer encore une fois... \n")
                         print("\n ***********************************")
                         print(" ***********************************")
-                        plaintext = cypher.decrypt(ciphertext)
-                        print("Le text clair est :  " ,plaintext.decode())
+                        print("Le text clair est :  " ,plaintext2)
                         print(" ***********************************")
                         print(" ***********************************")
                     elif ans4_2 =="3":
@@ -301,13 +322,19 @@ while ans:
                           ans5_2 = raw_input("Que voulez vous ? ")
                           if ans5_2 == "1":
                               # Chiffrer le message
-                              secret_code = input("Entrer votre mot de passe : ")
-                              encoded_key = open("rsa_key.bin", "rb").read()
-                              key = RSA.import_key(encoded_key, passphrase=secret_code)
+                              test = False
+                              while test == False:
+                                  try:
+                                      secret_code = input("Entrez votre mot de passe de ta paire de clés déjà généré : ")
+                                      encoded_key = open("rsa_key.bin", "rb").read()
+                                      key = RSA.import_key(encoded_key, passphrase=secret_code)
+                                      test = True
+                                  except Exception:
+                                      print("Oops! mot de passe INCORRECT.  Essayez encore une fois...\n")
+                              test = False
 
-                              #data = "I met aliens in UFO. Here is the map.".encode("utf-8")
+
                               data = message.encode("utf-8")
-                              file_out = open("encrypted_data.bin", "wb")
                               recipient_key = key
                               session_key = get_random_bytes(16)
                               # Encrypt the session key with the public RSA key
@@ -316,7 +343,10 @@ while ans:
                               # Encrypt the data with the AES session key
                               cipher_aes = AES.new(session_key, AES.MODE_EAX)
                               ciphertext, tag = cipher_aes.encrypt_and_digest(data)
-                              print( ciphertext.hex() )
+                              #file_name = input("Entrez le nom du fichier qui va contenir votre message secret : ")
+                              file_name = ciphertext.hex()
+                              file_out = open(file_name + ".bin", "wb")
+                              print( "Hex " , ciphertext.hex() )
                               [file_out.write(x) for x in (enc_session_key, cipher_aes.nonce, tag, ciphertext)]
                               file_out.close()
 
@@ -347,11 +377,26 @@ while ans:
                   """)
                   ans5_3 = raw_input("Que voulez vous ? ")
                   if ans5_3 == "1":
-                      secret_code = input("Entrer votre mot de passe : ")
-                      encoded_key = open("rsa_key.bin", "rb").read()
-                      key = RSA.import_key(encoded_key, passphrase=secret_code)
+                      test = False
+                      while test == False:
+                          try:
+                              file_name = input("Entrez le nom message chiffré en HEX : ")
+                              file_in = open(file_name + ".bin", "rb")
+                              test = True
+                          except Exception:
+                              print("Oops!  Nom de fichier inéxistant.  Essayez encore une fois...\n")
 
-                      file_in = open("encrypted_data.bin", "rb")
+
+                      test = False
+                      while test == False:
+                          try:
+                            secret_code = input("Entrez votre mot de passe de ta paire de clés déjà généré : ")
+                            encoded_key = open("rsa_key.bin", "rb").read()
+                            key = RSA.import_key(encoded_key, passphrase=secret_code)
+                            test = True
+                          except Exception:
+                              print("Oops! mot de passe INCORRECT.  Essayez encore une fois...\n")
+
 
                       private_key = key
 
